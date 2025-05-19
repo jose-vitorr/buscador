@@ -14,7 +14,7 @@ async function crawlPagina(url) {
     const resposta = await axios.get(url);
     const $ = cheerio.load(resposta.data);
 
-    const texto = $('body').text(); // Conteúdo bruto da página
+    const texto = $('head').text() + '\n' + $('body').text(); // Conteúdo bruto da página
     const links = [];
 
     $('a').each((_, el) => {
@@ -42,7 +42,7 @@ async function crawlPagina(url) {
 
 // Executa o crawler a partir de uma URL
 (async () => {
-  const urlInicial = 'https://jose-vitorr.github.io/buscador/blade_runner.html'; // Troque pelo seu link
+  const urlInicial = 'https://jose-vitorr.github.io/buscador/public/blade_runner.html';
   await crawlPagina(urlInicial);
 
   // Salvar os dados em JSON
