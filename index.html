@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Resultados de Buscas</title>
+  <style>
+    body { font-family: Arial; margin: 20px; background: #f4f4f4; }
+    .tabs { display: flex; margin-bottom: 10px; }
+    .tab { padding: 10px; background: #ddd; margin-right: 5px; cursor: pointer; border-radius: 5px 5px 0 0; }
+    .tab.active { background: #fff; border-bottom: 2px solid white; }
+    .tab-content { display: none; padding: 20px; background: #fff; border: 1px solid #ccc; }
+    .tab-content.active { display: block; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 8px; border: 1px solid #aaa; text-align: center; }
+    th { background: #004766; color: white; }
+    tr:nth-child(even) { background-color: #f2f2f2; }
+  </style>
+</head>
+<body>
+  <h1>Resultados das Buscas por Termo</h1>
+  <div class="tabs" id="tabButtons"></div>
+  <div id="tabContents"></div>
+
+  <script>
+    const termos = ['matrix', 'ficcao', 'realidade', 'universo', 'viagem'];
+
+    async function buscarDados(termo) {
+      const response = await fetch(`/api/search/${termo}`);
+      return await response.json();
+    }
+
+    function criarTabela(dados, termo) {
+      let rows = dados.map((item, i) => `
+        <tr>
+          <td>${i + 1}º</td>
+          <td>${item.pagina}</td>
+          <td>${item.ocorrencias}×5 = ${item.ocorrencias * 5}</td>
+          <td>${item.linksRecebidos * 10}</td>
+          <td>${item.autorreferencia ? '-15' : '0'}</td>
+          <td>${item.total}</td>
+        </tr>
+      `).join('');
+      
+      return `
+        <div id="${termo}" class="tab-content">
+          <h2>Termo: "${termo}"</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Posição</th>
+                <th>Página</th>
+                <th>Ocorrências<br>(+5)</th>
+                <th>Links Recebidos<br>(+10)</th>
+                <th>Autorreferência<br>(-15)</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    }
+
+    async function inicializar() {
+      const tabButtons = document.getElementById('tabButtons');
+      const tabContents = document.getElementById('tabContents');
+
+      for (let i = 0; i < termos.length; i++) {
+        const termo = termos[i];
+        const dados = await buscarDados(termo);
+        tabContents.innerHTML += criarTabela(dados, termo);
+
+        const btn = document.createElement('div');
+        btn.className = 'tab' + (i === 0 ? ' active' : '');
+        btn.innerText = termo.charAt(0).toUpperCase() + termo.slice(1);
+        btn.onclick = () => ativarTab(termo, btn);
+        tabButtons.appendChild(btn);
+
+        if (i === 0) document.getElementById(termo).classList.add('active');
+      }
+    }
+
+    function ativarTab(id, btn) {
+      document.querySelectorAll('.tab-content').forEach(div => div.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      btn.classList.add('active');
+    }
+
+    inicializar();
+  </script>
+</body>
+</html>
