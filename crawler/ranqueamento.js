@@ -1,70 +1,66 @@
 import fs from 'fs'
 import * as cheerio from 'cheerio'
+import path from 'path'
 
-// Lista de páginas HTML
-export const pages = ['blade_runner.html', 'duna.html', 'interestelar.html', 'matrix.html', 'mochileiro.html']
-
-const paginas = {}
-
-// Inicializar estrutura com valores padrão
-pages.forEach(pagina => {
-  paginas[pagina] = {
-    pontuacao: 0,
-    linksRecebidos: 0,
-    ocorrenciasTermo: 0,
-    autoreferencia: false,
-    linksApontados: []
-  };
-});
+// Descobre automaticamente as páginas HTML no diretório atual
+export const pages = fs.readdirSync('./').filter(file => file.endsWith('.html'))
 
 // Termos buscados
-export const searchTerms = ['Matrix', 'busca']
+export const searchTerms = ['tem']; // Exemplo: "tem" deve encontrar "tempero", "COMTRATEMPO", etc.
 
-// Função para calcular a pontuação de cada página
+export function normalizeText(text) {
+  return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+}
+
 export function calculateScores(pages, searchTerms) {
   const linkMap = {}
   const authorityMap = {}
   const scores = {}
 
-  // Inicializar mapas
+  // Inicialização
   pages.forEach(page => {
     linkMap[page] = []
     authorityMap[page] = 0
     scores[page] = 0
-  });
+  })
 
-  // Construir o grafo de links e contar autoridade
+  // Construir grafo de links e autoridade
   pages.forEach(page => {
     const content = fs.readFileSync(page, 'utf-8')
     const $ = cheerio.load(content)
-    const links = $('a')
-    links.each((i, link) => {
+    const allLinks = $('a')
+
+    allLinks.each((i, link) => {
       const href = $(link).attr('href')
-      if (pages.includes(href)) {
-        linkMap[page].push(href)
-        authorityMap[href]++
+      if (href && pages.includes(href)) {
+        linkMap[page].push(href);
+
+        // Penalização por autoreferência: ignora contagem
+        if (href !== page) {
+          authorityMap[href]++
+        }
       }
     })
   })
 
-  // Calcular pontuação para cada página
+  // Calcular pontuações
   pages.forEach(page => {
-    let score = 0
-    const content = fs.readFileSync(page, 'utf-8')
+    let score = 0;
+    const rawContent = fs.readFileSync(page, 'utf-8')
+    const normalizedContent = normalizeText(rawContent)
 
-    // Autoridade
+    // Autoridade (se não for autoreferência)
     score += (authorityMap[page] || 0) * 10
 
-    // Frequência dos termos buscados
+    // Ocorrência dos termos (inclusive dentro de palavras e links)
     searchTerms.forEach(term => {
-      const regex = new RegExp(term, 'gi')
-      const matches = content.match(regex)
-      if (matches) {
-        score += matches.length * 10
-      }
+      const normalizedTerm = normalizeText(term)
+      const regex = new RegExp(`\\w*${normalizedTerm}\\w*`, 'gi')
+      const matches = normalizedContent.match(regex)
+      if (matches) score += matches.length * 10
     })
 
-    // Penalização por autoreferência
+    // Penalidade por autoreferência
     if (linkMap[page].includes(page)) {
       score -= 15
     }
@@ -73,8 +69,4 @@ export function calculateScores(pages, searchTerms) {
   })
 
   return { scores, linkMap, authorityMap }
-
 }
-
-const finalScores = calculateScores(pages, searchTerms);
-console.log(finalScores)
