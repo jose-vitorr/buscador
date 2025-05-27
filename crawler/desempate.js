@@ -1,23 +1,26 @@
-import { pages, searchTerms, calculateScores } from "./ranqueamento.js"
+import { pages } from "./ranqueamento.js"
+import { searchTerms } from "./ranqueamento.js"
 import fs from 'fs'
-import { normalizeText } from "./ranqueamento.js"
+import { calculateScores } from "./ranqueamento.js"
 
 const { scores, linkMap, authorityMap } = calculateScores(pages, searchTerms)
 
 const finalResults = pages.map(page => {
   const content = fs.readFileSync(page, 'utf-8')
-  const normalized = normalizeText(content)
 
-  // Contar ocorrências com correspondência parcial
+  // Contar termos buscados
   let termCount = 0
   searchTerms.forEach(term => {
-    const normTerm = normalizeText(term)
-    const regex = new RegExp(`\\w*${normTerm}\\w*`, 'gi')
-    const matches = normalized.match(regex)
-    if (matches) termCount += matches.length
-  })
+    const normalizedTerm = term.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    const normalizedContent = content.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 
-  const hasSelfRef = linkMap[page].includes(page)
+    const regex = new RegExp(`\\w*${normalizedTerm}\\w*`, 'gi')
+    const matches = normalizedContent.match(regex)
+    if (matches) termCount += matches.length
+  });
+
+  // Verificar autoreferência
+  const hasSelfRef = linkMap[page]?.includes(page)
 
   return {
     page,
@@ -28,16 +31,17 @@ const finalResults = pages.map(page => {
   }
 })
 
-// Ordenação com critérios de desempate
+// Aplicar ordenação com critérios de desempate
 finalResults.sort((a, b) => {
-  if (b.score !== a.score) return b.score - a.score;
+  if (b.score !== a.score) return b.score - a.score
   if (b.linksReceived !== a.linksReceived) return b.linksReceived - a.linksReceived
   if (b.termCount !== a.termCount) return b.termCount - a.termCount
   if (a.hasSelfRef !== b.hasSelfRef) return a.hasSelfRef ? 1 : -1
-  return 0 // Empate final, ordem definida pela equipe
+  return 0
 })
 
-// Mostrar resultado final
-finalResults.forEach(result => {
-  console.log(`${result.page}: ${result.score} pontos`);
-});
+// 🔍 Mostrar apenas páginas com pelo menos uma ocorrência de termo
+const filteredResults = finalResults.filter(result => result.termCount > 0)
+
+console.log("> Resultados para o termo : "  + searchTerms + "\n")
+console.table(filteredResults, ['page', 'termCount', 'linksReceived', 'hasSelfRef', 'score'])
