@@ -57,7 +57,7 @@ export function calculateScores(pages, searchTerms) {
       const normalizedTerm = normalizeText(term)
       const regex = new RegExp(`\\w*${normalizedTerm}\\w*`, 'gi')
       const matches = normalizedContent.match(regex)
-      if (matches) score += matches.length * 10
+      if (matches) score += matches.length * 5
     })
 
     // Penalidade por autoreferência
